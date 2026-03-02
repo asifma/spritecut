@@ -1,5 +1,7 @@
 # 🎵 SpriteCut
 
+![SpriteCut screenshot](img/spritecut.png)
+
 A browser-based audio sprite editor for creating [Howler.js](https://howlerjs.com/) compatible sprite JSON files. Drop in an MP3, detect sounds automatically, name them, fine-tune boundaries, and export — no server, no install, just open the HTML file.
 
 ---
