@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Cutter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #00e5ff;
+    --accent2: #ff3d71;
+    --accent3: #a259ff;
+    --text: #e8e8f0;
+    --muted: #666680;
+    --segment-color: rgba(0, 229, 255, 0.18);
+    --segment-border: #00e5ff;
+    --handle-size: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+  .logo span { color: var(--text); }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* DROP ZONE */
+  #dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    height: calc(100vh - 61px);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #dropzone:hover, #dropzone.dragover {
+    background: rgba(0,229,255,0.03);
+  }
+  .drop-icon {
+    width: 80px; height: 80px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  #dropzone:hover .drop-icon {
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .drop-label {
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .drop-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .drop-btn {
+    margin-top: 8px;
+    padding: 10px 28px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .drop-btn:hover { background: var(--accent); color: var(--bg); }
+
+  /* EDITOR LAYOUT */
+  #editor {
+    display: none;
+    flex-direction: column;
+    height: calc(100vh - 61px);
+    overflow: hidden;
+  }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toolbar-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .toolbar-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    width: 70px;
+  }
+  .toolbar-input:focus { outline: none; border-color: var(--accent); }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  .btn {
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s;
+    font-weight: 700;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-danger  { background: var(--accent2); color: #fff; }
+  .btn-ghost   { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-export  { background: var(--accent3); color: #fff; margin-left: auto; }
+
+  .file-name {
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* WAVEFORM AREA */
+  .waveform-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .waveform-scroll {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
+    cursor: default;
+  }
+  .waveform-scroll::-webkit-scrollbar { height: 6px; }
+  .waveform-scroll::-webkit-scrollbar-track { background: var(--surface); }
+  .waveform-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  #waveform-canvas {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+  }
+
+  #segments-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* PLAYHEAD */
+  #playhead {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    background: var(--accent2);
+    pointer-events: none;
+    z-index: 20;
+    transition: left 0.05s linear;
+  }
+  #playhead::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -5px;
+    border: 5px solid transparent;
+    border-top-color: var(--accent2);
+  }
+
+  /* TIMELINE */
+  #timeline-canvas {
+    display: block;
+    height: 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .editor-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* RESIZE HANDLE */
+  .panel-resize-handle {
+    width: 5px;
+    background: var(--border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+  }
+  .panel-resize-handle:hover,
+  .panel-resize-handle.dragging {
+    background: var(--accent);
+  }
+  .panel-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 40px;
+    background: currentColor;
+    opacity: 0.4;
+  }
+
+  /* SEGMENT LIST PANEL */
+  .segments-panel {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .segment-count {
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+  }
+
+  .segments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .segments-list::-webkit-scrollbar { width: 4px; }
+  .segments-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .segment-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    margin-bottom: 5px;
+    transition: border-color 0.15s, background 0.15s;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .segment-item:hover { background: var(--surface2); }
+  .segment-item.active { border-color: var(--accent); background: rgba(0,229,255,0.05); }
+
+  .seg-buttons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .seg-index {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 24px;
+  }
+  .seg-name-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    min-width: 0;
+  }
+  .seg-name-input:focus {
+    border-bottom: 1px solid var(--accent);
+    background: rgba(0,229,255,0.05);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+  .seg-name-input:hover {
+    border-bottom: 1px dashed var(--muted);
+    cursor: text;
+  }
+  .seg-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .seg-play {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: color 0.15s;
+  }
+  .seg-play:hover { color: var(--accent); }
+  .seg-delete {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: color 0.15s;
+  }
+  .seg-delete:hover { color: var(--accent2); }
+  .seg-lock-btn {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 13px; padding: 2px 4px;
+    border-radius: 3px; transition: color 0.15s;
+  }
+  .seg-lock-btn:hover { color: #ffb800; }
+
+  /* LOCKED (imported) segments */
+  .segment-item.locked {
+    border-color: #3a3a20;
+    background: rgba(255,184,0,0.04);
+    opacity: 0.85;
+  }
+  .segment-item.locked .seg-name-input {
+    color: #ffb800;
+  }
+  .lock-icon {
+    font-size: 10px;
+    color: #ffb800;
+    flex-shrink: 0;
+  }
+
+  /* IMPORT JSON MODAL */
+  .import-modal .modal {
+    max-width: 560px;
+  }
+  .import-textarea {
+    width: 100%;
+    min-height: 180px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .import-textarea:focus { border-color: #ffb800; }
+  .import-error {
+    color: var(--accent2);
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    margin-top: 8px;
+    min-height: 18px;
+  }
+  .btn-import { background: #ffb800; color: #0a0a0f; }
+
+  .seg-check {
+    width: 15px; height: 15px;
+    accent-color: var(--accent3);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .segment-item.selected {
+    border-color: var(--accent3);
+    background: rgba(162,89,255,0.08);
+  }
+  .merge-bar {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    display: none;
+    gap: 8px;
+    align-items: center;
+    background: rgba(162,89,255,0.07);
+  }
+  .merge-bar.visible { display: flex; }
+  .merge-hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    flex: 1;
+  }
+  .btn-merge { background: var(--accent3); color: #fff; }
+  .seg-split {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 13px; padding: 2px 4px;
+    border-radius: 3px; transition: color 0.15s;
+  }
+  .seg-split:hover { color: #00e5b0; }
+  #split-marker {
+    position: absolute; top: 0;
+    width: 2px; background: #00e5b0;
+    pointer-events: none; z-index: 25; display: none;
+  }
+  #split-marker::before {
+    content: '✂'; position: absolute;
+    top: 4px; left: 4px;
+    font-size: 14px; color: #00e5b0;
+  }
+
+  /* MAIN CONTENT ROW */
+  .editor-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 520px;
+    width: 90%;
+  }
+  .modal h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .modal p { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .modal pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre;
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+  /* LOADING */
+  #loading {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,10,15,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #loading.show { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); }
+
+  /* SEGMENT COLORS */
+  .seg-color-0 { --sc: #00e5ff; }
+  .seg-color-1 { --sc: #a259ff; }
+  .seg-color-2 { --sc: #ff3d71; }
+  .seg-color-3 { --sc: #00e5b0; }
+  .seg-color-4 { --sc: #ffb800; }
+  .seg-color-5 { --sc: #ff6b35; }
+</style>
+</head>
+<body>
+
+<!-- DROP ZONE -->
+<div id="dropzone">
+  <div class="drop-icon">🎵</div>
+  <div class="drop-label">Drop your MP3 here</div>
+  <div class="drop-sub">or click to browse</div>
+  <button class="drop-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+  <input type="file" id="fileInput" accept="audio/mp3,audio/mpeg,audio/*" style="display:none">
+  <a href="https://mithawala.com" target="_blank" style="margin-top:24px;font-size:11px;color:var(--muted);font-family:Space Mono,monospace;text-decoration:none;opacity:0.5;transition:opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">© Asif Mithawala 2026</a>
+</div>
+
+<header style="display:none" id="main-header">
+  <div class="logo">SPRITE<span>CUT</span></div>
+  <div class="header-meta" id="file-info"></div>
+  <a href="https://mithawala.com" target="_blank" style="font-size:11px;color:var(--muted);font-family:Space Mono,monospace;text-decoration:none;opacity:0.7;transition:opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">© Asif Mithawala 2026</a>
+</header>
+
+<!-- EDITOR -->
+<div id="editor">
+  <div class="toolbar">
+    <span class="file-name" id="toolbar-filename"></span>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Threshold</span>
+      <input type="range" id="thresholdSlider" min="0.001" max="0.05" step="0.001" value="0.01">
+      <span class="toolbar-label" id="thresholdVal">0.010</span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Min Gap ms</span>
+      <input type="range" id="gapSlider" min="50" max="800" step="10" value="200">
+      <span class="toolbar-label" id="gapVal">200</span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Min Dur ms</span>
+      <input type="range" id="durSlider" min="50" max="500" step="10" value="100">
+      <span class="toolbar-label" id="durVal">100</span>
+    </div>
+    <button class="btn btn-primary" id="detectBtn">↺ Re-detect</button>
+    <button class="btn btn-ghost" id="playAllBtn">▶ Play All</button>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Zoom</span>
+      <button class="btn btn-ghost" id="zoomOutBtn" style="padding:5px 10px;font-size:16px;line-height:1">−</button>
+      <span class="toolbar-label" id="zoomVal" style="min-width:40px;text-align:center">100</span>
+      <button class="btn btn-ghost" id="zoomInBtn" style="padding:5px 10px;font-size:16px;line-height:1">+</button>
+    </div>
+    <button class="btn btn-import" id="importJsonBtn">⬆ Import JSON</button>
+    <button class="btn btn-export" id="exportBtn">Export JSON ↗</button>
+    <button class="btn btn-danger" id="newSessionBtn" title="Clear everything and load a new MP3">✕ New Session</button>
+  </div>
+
+  <div class="editor-content">
+    <div class="waveform-wrap">
+      <div class="waveform-scroll" id="waveformScroll">
+        <canvas id="waveform-canvas"></canvas>
+        <canvas id="segments-overlay"></canvas>
+        <div id="playhead"></div>
+        <div id="split-marker"></div>
+      </div>
+      <canvas id="timeline-canvas"></canvas>
+    </div>
+
+    <div class="panel-resize-handle" id="panelResizeHandle"></div>
+
+    <div class="segments-panel" id="segmentsPanel">
+      <div class="panel-header">
+        Segments
+        <span class="segment-count" id="segCountBadge" title="total">0</span>
+      </div>
+      <div id="segCountDetail" style="padding:4px 16px 0;font-size:10px;color:var(--muted);font-family:Space Mono,monospace;"></div>
+      <div class="segments-list" id="segmentsList"></div>
+      <div class="merge-bar" id="mergeBar">
+        <span class="merge-hint" id="mergeHint">0 selected</span>
+        <button class="btn btn-merge" id="mergeBtn">⊕ Merge</button>
+        <button class="btn btn-ghost" id="clearSelBtn">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Decoding audio…</div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <h2>Howler.js Sprite JSON</h2>
+    <p>Copy this into your project. Sprite names are editable in the panel.</p>
+    <pre id="exportPre"></pre>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('exportModal').classList.remove('open')">Close</button>
+      <button class="btn btn-primary" id="copyBtn">Copy JSON</button>
+      <button class="btn btn-export" id="downloadJsonBtn">Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT JSON MODAL -->
+<div class="modal-overlay import-modal" id="importModal">
+  <div class="modal">
+    <h2>⬆ Import Existing Sprite JSON</h2>
+    <p>Paste your previous sprite JSON. All entries will be loaded as <strong>locked segments</strong> — exactly as defined, no re-detection. When you're ready to find new sounds, use <strong>↺ Re-detect</strong> in the toolbar, which will only scan uncovered gaps.</p>
+    <textarea class="import-textarea" id="importTextarea" placeholder='Paste JSON here, e.g.:
+{
+  "sprite": {
+    "hej": [0, 1200],
+    "hallå": [1500, 2100]
+  }
+}'></textarea>
+    <div class="import-error" id="importError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('importModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-import" id="importApplyBtn">Apply &amp; Detect New Sounds</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let audioBuffer = null;
+let audioCtx    = null;
+let segments    = [];      // [{id, name, start, end, locked?}] in seconds — locked = imported from JSON
+let fileName    = 'audio';
+let pixelsPerSecond = 100; // zoom level
+let playingSource  = null;
+let playbackStart  = 0;    // audioCtx time when playback started
+let playbackOffset = 0;    // buffer offset in seconds
+let isPlaying      = false;
+let rafId          = null;
+let activeSegment  = null;
+
+// Drag state
+let dragState  = null; // {type:'left'|'right'|'move', segIdx, startX, origStart, origEnd}
+let didDrag    = false; // true if mouse moved enough during mousedown to count as a drag
+
+// Merge selection
+let selectedSegments = new Set(); // indices
+
+const COLORS = ['#00e5ff','#a259ff','#ff3d71','#00e5b0','#ffb800','#ff6b35'];
+
+// ─── ELEMENTS ─────────────────────────────────────────────────────────────────
+const dropzone        = document.getElementById('dropzone');
+const fileInput       = document.getElementById('fileInput');
+const editorEl        = document.getElementById('editor');
+const mainHeader      = document.getElementById('main-header');
+const waveCanvas      = document.getElementById('waveform-canvas');
+const segOverlay      = document.getElementById('segments-overlay');
+const timelineCanvas  = document.getElementById('timeline-canvas');
+const playhead        = document.getElementById('playhead');
+const waveScroll      = document.getElementById('waveformScroll');
+const segListEl       = document.getElementById('segmentsList');
+const segCountBadge   = document.getElementById('segCountBadge');
+const loadingEl       = document.getElementById('loading');
+const loadingText     = document.getElementById('loadingText');
+const threshSlider    = document.getElementById('thresholdSlider');
+const gapSlider       = document.getElementById('gapSlider');
+const durSlider       = document.getElementById('durSlider');
+const threshVal       = document.getElementById('thresholdVal');
+const gapVal          = document.getElementById('gapVal');
+const durVal          = document.getElementById('durVal');
+const detectBtn       = document.getElementById('detectBtn');
+const exportBtn       = document.getElementById('exportBtn');
+const exportModal     = document.getElementById('exportModal');
+const exportPre       = document.getElementById('exportPre');
+const copyBtn         = document.getElementById('copyBtn');
+const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+const mergeBar        = document.getElementById('mergeBar');
+const mergeHint       = document.getElementById('mergeHint');
+const mergeBtn        = document.getElementById('mergeBtn');
+const clearSelBtn     = document.getElementById('clearSelBtn');
+const importJsonBtn   = document.getElementById('importJsonBtn');
+const importModal     = document.getElementById('importModal');
+const importTextarea  = document.getElementById('importTextarea');
+const importError     = document.getElementById('importError');
+const importApplyBtn  = document.getElementById('importApplyBtn');
+
+// ─── DROP / FILE ──────────────────────────────────────────────────────────────
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); });
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
+
+async function loadFile(file) {
+  if (!file) return;
+  fileName = file.name.replace(/\.[^.]+$/, '');
+  showLoading('Decoding audio…');
+
+  const arrayBuf = await file.arrayBuffer();
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+
+  document.getElementById('toolbar-filename').textContent = file.name;
+  document.getElementById('file-info').textContent =
+    `${(file.size/1024/1024).toFixed(2)} MB  ·  ${audioBuffer.duration.toFixed(2)}s  ·  ${audioBuffer.sampleRate}Hz`;
+
+  dropzone.style.display = 'none';
+  mainHeader.style.display = 'flex';
+  editorEl.style.display = 'flex';
+
+  hideLoading();
+  // Defer initEditor so the browser has time to lay out the flex editor
+  // before we read waveScroll.clientWidth (otherwise it's 0)
+  requestAnimationFrame(() => requestAnimationFrame(() => initEditor()));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function initEditor() {
+  // Pick a zoom level that roughly fits the audio, snapping to nearest zoomLevel
+  const fitPPS = waveScroll.clientWidth / audioBuffer.duration * 0.9;
+  zoomIndex = zoomLevels.reduce((best, lvl, i) =>
+    Math.abs(lvl - fitPPS) < Math.abs(zoomLevels[best] - fitPPS) ? i : best, 4);
+  pixelsPerSecond = zoomLevels[zoomIndex];
+  document.getElementById('zoomVal').textContent = pixelsPerSecond;
+  drawWaveform();
+  segments = [];
+  selectedSegments = new Set();
+  renderSegmentOverlay();
+  renderSegmentList();
+}
+
+// ─── WAVEFORM ─────────────────────────────────────────────────────────────────
+function drawWaveform() {
+  const duration = audioBuffer.duration;
+  const totalW = Math.ceil(duration * pixelsPerSecond);
+  const H = waveScroll.clientHeight || 200;
+
+  waveCanvas.width  = totalW;
+  waveCanvas.height = H;
+  segOverlay.width  = totalW;
+  segOverlay.height = H;
+  playhead.style.height = H + 'px';
+
+  const ctx  = waveCanvas.getContext('2d');
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.ceil(data.length / totalW);
+  const mid  = H / 2;
+
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, totalW, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let y = mid - 40; y >= 0; y -= 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(totalW,y); ctx.stroke(); }
+  for (let y = mid + 40; y <= H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(totalW,y); ctx.stroke(); }
+
+  // Waveform gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   'rgba(0,229,255,0.9)');
+  grad.addColorStop(0.5, 'rgba(162,89,255,0.8)');
+  grad.addColorStop(1,   'rgba(0,229,255,0.9)');
+
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1;
+
+  for (let x = 0; x < totalW; x++) {
+    let min = 1, max = -1;
+    for (let j = 0; j < step; j++) {
+      const v = data[x * step + j] || 0;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    ctx.beginPath();
+    ctx.moveTo(x, mid + min * mid * 0.9);
+    ctx.lineTo(x, mid + max * mid * 0.9);
+    ctx.stroke();
+  }
+
+  // Timeline
+  drawTimeline(totalW);
+
+  waveScroll.style.width  = '100%';
+  waveCanvas.style.width  = totalW + 'px';
+  segOverlay.style.width  = totalW + 'px';
+}
+
+function drawTimeline(totalW) {
+  const tc   = timelineCanvas;
+  const tctx = tc.getContext('2d');
+  const pW   = waveScroll.clientWidth || 800;
+  tc.width   = pW;
+  tc.height  = 24;
+
+  tctx.fillStyle = '#111118';
+  tctx.fillRect(0, 0, pW, 24);
+  tctx.strokeStyle = '#2a2a3a';
+  tctx.fillStyle   = '#666680';
+  tctx.font        = '10px Space Mono, monospace';
+
+  const scrollLeft = waveScroll.scrollLeft;
+  const secStart   = scrollLeft / pixelsPerSecond;
+  const secEnd     = (scrollLeft + pW) / pixelsPerSecond;
+
+  let interval = 1;
+  if (pixelsPerSecond < 40) interval = 5;
+  if (pixelsPerSecond < 15) interval = 10;
+
+  for (let s = Math.floor(secStart / interval) * interval; s <= secEnd; s += interval) {
+    const x = s * pixelsPerSecond - scrollLeft;
+    tctx.beginPath();
+    tctx.moveTo(x, 0); tctx.lineTo(x, 8);
+    tctx.stroke();
+    tctx.fillText(formatTime(s), x + 3, 18);
+  }
+}
+
+waveScroll.addEventListener('scroll', () => drawTimeline(waveCanvas.width));
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(1);
+  return m > 0 ? `${m}:${sec.padStart(4,'0')}` : `${sec}s`;
+}
+
+// ─── SILENCE DETECTION ────────────────────────────────────────────────────────
+function detectSegments() {
+  if (!audioBuffer) return;
+
+  const threshold  = parseFloat(threshSlider.value);
+  const minGap     = parseInt(gapSlider.value) / 1000;
+  const minDur     = parseInt(durSlider.value) / 1000;
+  const data       = audioBuffer.getChannelData(0);
+  const sr         = audioBuffer.sampleRate;
+  const windowSize = Math.floor(sr * 0.02);
+
+  // RMS envelope
+  const rms = [];
+  for (let i = 0; i < data.length; i += windowSize) {
+    let sum = 0;
+    const end = Math.min(i + windowSize, data.length);
+    for (let j = i; j < end; j++) sum += data[j] * data[j];
+    rms.push(Math.sqrt(sum / (end - i)));
+  }
+
+  const lockedSegs    = segments.filter(s => s.locked);
+  const secsPerWindow = windowSize / sr;
+  const pad           = 0.05;
+
+  // Only scan AFTER the last locked segment ends — never touch anything before
+  const scanFrom = lockedSegs.length > 0
+    ? Math.max(...lockedSegs.map(s => s.end))
+    : 0;
+
+  const iStart     = Math.ceil(scanFrom / secsPerWindow);
+  const newSegs    = [];
+  let inSound      = false;
+  let soundStart   = 0;
+  let silenceStart = 0;
+
+  for (let i = iStart; i < rms.length; i++) {
+    const t = i * secsPerWindow;
+
+    if (!inSound && rms[i] >= threshold) {
+      inSound      = true;
+      soundStart   = t;
+      silenceStart = 0;
+    } else if (inSound && rms[i] < threshold) {
+      if (!silenceStart) silenceStart = t;
+      if ((t - silenceStart) >= minGap) {
+        newSegs.push({ start: soundStart - pad, end: silenceStart + pad });
+        inSound      = false;
+        silenceStart = 0;
+      }
+    } else if (inSound && rms[i] >= threshold) {
+      silenceStart = 0;
+    }
+  }
+  if (inSound) newSegs.push({ start: soundStart - pad, end: audioBuffer.duration });
+
+  const filtered     = newSegs.filter(s => (s.end - s.start) >= minDur);
+  const detectedSegs = filtered.map((s, i) => ({
+    name:   `sound_${lockedSegs.length + i + 1}`,
+    start:  Math.max(scanFrom, s.start),
+    end:    Math.min(audioBuffer.duration, s.end),
+    locked: false
+  }));
+
+  segments = [...lockedSegs, ...detectedSegs].map((s, i) => ({ ...s, id: i }));
+
+  selectedSegments = new Set();
+  renderSegmentOverlay();
+  renderSegmentList();
+
+  if (detectedSegs.length === 0) {
+    alert(`No new sounds found after ${scanFrom.toFixed(1)}s.\n\nThe MP3 may not have new content, or try lowering the Threshold slider.`);
+  }
+}
+
+// ─── OVERLAY ──────────────────────────────────────────────────────────────────
+function renderSegmentOverlay() {
+  const ctx = segOverlay.getContext('2d');
+  const H   = segOverlay.height;
+  ctx.clearRect(0, 0, segOverlay.width, H);
+
+  // Draw merge span behind everything if ≥2 selected
+  if (selectedSegments.size >= 2) {
+    const indices   = [...selectedSegments];
+    const selSegs   = indices.map(i => segments[i]).filter(Boolean);
+    const spanStart = Math.min(...selSegs.map(s => s.start)) * pixelsPerSecond;
+    const spanEnd   = Math.max(...selSegs.map(s => s.end))   * pixelsPerSecond;
+    ctx.fillStyle   = 'rgba(162,89,255,0.08)';
+    ctx.fillRect(spanStart, 0, spanEnd - spanStart, H);
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#a259ff';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.moveTo(spanStart, 0); ctx.lineTo(spanStart, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(spanEnd,   0); ctx.lineTo(spanEnd,   H); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  segments.forEach((seg, i) => {
+    const isLocked = seg.locked;
+    const isSel    = selectedSegments.has(i);
+    const color    = isLocked ? '#ffb800' : (isSel ? '#a259ff' : COLORS[i % COLORS.length]);
+    const x1       = seg.start * pixelsPerSecond;
+    const x2       = seg.end   * pixelsPerSecond;
+    const w        = x2 - x1;
+
+    // Fill — locked gets a warm gold tint, hatched to signal "hands off"
+    if (isLocked) {
+      ctx.fillStyle = 'rgba(255,184,0,0.10)';
+      ctx.fillRect(x1, 0, w, H);
+      // Subtle diagonal hatch
+      ctx.save();
+      ctx.clip(); // (no actual clip region here, just pattern)
+      ctx.strokeStyle = 'rgba(255,184,0,0.07)';
+      ctx.lineWidth = 1;
+      for (let hx = x1 - H; hx < x2 + H; hx += 12) {
+        ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx + H, H); ctx.stroke();
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = color + (isSel ? '30' : '22');
+      ctx.fillRect(x1, 0, w, H);
+    }
+
+    // Border
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = isLocked ? 1.5 : (isSel ? 2.5 : 2);
+    if (isLocked) ctx.setLineDash([5, 3]);
+    ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label
+    ctx.fillStyle = color;
+    ctx.font      = `${isSel ? 'bold ' : ''}11px Space Mono, monospace`;
+    const label   = isLocked ? `🔒 ${seg.name}` : (isSel ? `☑ ${seg.name}` : seg.name);
+    ctx.fillText(label, x1 + 6, 16);
+
+    // Drag handles on all segments (locked = edges only, shown smaller)
+    drawHandle(ctx, x1, H, color, 'left');
+    drawHandle(ctx, x2, H, color, 'right');
+  });
+}
+
+function drawHandle(ctx, x, H, color, side) {
+  const s = 8;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (side === 'left') {
+    ctx.moveTo(x, H/2 - s);
+    ctx.lineTo(x + s, H/2);
+    ctx.lineTo(x, H/2 + s);
+  } else {
+    ctx.moveTo(x, H/2 - s);
+    ctx.lineTo(x - s, H/2);
+    ctx.lineTo(x, H/2 + s);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ─── DRAG HANDLES ─────────────────────────────────────────────────────────────
+segOverlay.style.pointerEvents = 'auto';
+segOverlay.style.cursor = 'default';
+
+function getScrollX(e) {
+  const rect = waveScroll.getBoundingClientRect();
+  return e.clientX - rect.left + waveScroll.scrollLeft;
+}
+
+function hitTest(x) {
+  const tolerance = 10;
+  for (let i = 0; i < segments.length; i++) {
+    const x1 = segments[i].start * pixelsPerSecond;
+    const x2 = segments[i].end   * pixelsPerSecond;
+    if (Math.abs(x - x1) < tolerance) return { type: 'left',  idx: i };
+    if (Math.abs(x - x2) < tolerance) return { type: 'right', idx: i };
+    // locked segments: only edge resize, not move
+    if (!segments[i].locked && x > x1 + tolerance && x < x2 - tolerance) return { type: 'move', idx: i };
+  }
+  return null;
+}
+
+segOverlay.addEventListener('mousemove', e => {
+  if (splitMode) {
+    const x = getScrollX(e);
+    splitMarker.style.display = 'block';
+    splitMarker.style.left   = x + 'px';
+    splitMarker.style.height = segOverlay.height + 'px';
+    return;
+  }
+  const hit = hitTest(getScrollX(e));
+  if (!hit) segOverlay.style.cursor = 'default';
+  else if (hit.type === 'left' || hit.type === 'right') segOverlay.style.cursor = 'ew-resize';
+  else segOverlay.style.cursor = 'grab';
+});
+
+// Drag on window so it keeps working even if mouse leaves the canvas
+window.addEventListener('mousemove', e => {
+  if (!dragState) return;
+  didDrag = true;
+  const rect = waveScroll.getBoundingClientRect();
+  const x  = e.clientX - rect.left + waveScroll.scrollLeft;
+  const dx = x - dragState.startX;
+  const ds = dx / pixelsPerSecond;
+  const seg = segments[dragState.idx];
+  const dur = dragState.origEnd - dragState.origStart;
+  if (dragState.type === 'left') {
+    seg.start = Math.max(0, Math.min(dragState.origStart + ds, seg.end - 0.05));
+  } else if (dragState.type === 'right') {
+    seg.end = Math.min(audioBuffer.duration, Math.max(seg.start + 0.05, dragState.origEnd + ds));
+  } else {
+    const newStart = Math.max(0, dragState.origStart + ds);
+    const newEnd   = newStart + dur;
+    if (newEnd <= audioBuffer.duration) { seg.start = newStart; seg.end = newEnd; }
+  }
+  renderSegmentOverlay();
+  renderSegmentList();
+});
+
+segOverlay.addEventListener('mousedown', e => {
+  if (splitMode) return;
+  const x   = getScrollX(e);
+  const hit = hitTest(x);
+  if (!hit) return;
+  didDrag   = false;
+  dragState = {
+    type: hit.type, idx: hit.idx,
+    startX: x,
+    origStart: segments[hit.idx].start,
+    origEnd:   segments[hit.idx].end
+  };
+  segOverlay.style.cursor = hit.type === 'move' ? 'grabbing' : 'ew-resize';
+  e.preventDefault();
+});
+
+window.addEventListener('mouseup', () => {
+  if (dragState) {
+    dragState = null;
+    segOverlay.style.cursor = splitMode ? 'crosshair' : 'default';
+  }
+});
+
+segOverlay.addEventListener('click', e => {
+  if (didDrag) { didDrag = false; return; } // was a drag, not a click
+  const x = getScrollX(e);
+  const t = x / pixelsPerSecond;
+  if (splitMode) {
+    splitSegmentAt(splitMode.segIdx, t);
+  } else {
+    seekPlayback(t);
+  }
+});
+
+// ─── SEGMENT LIST ─────────────────────────────────────────────────────────────
+function renderSegmentList() {
+  const lockedCount = segments.filter(s => s.locked).length;
+  const newCount    = segments.filter(s => !s.locked).length;
+  segCountBadge.textContent = segments.length;
+  const detail = document.getElementById('segCountDetail');
+  if (detail) detail.textContent = lockedCount > 0 ? `🔒 ${lockedCount} imported  ✦ ${newCount} new` : '';
+  segListEl.innerHTML = '';
+
+  if (segments.length === 0) {
+    segListEl.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:16px;text-align:center;font-family:Space Mono,monospace;">⬆ Import JSON or click<br>↺ Re-detect to start</p>';
+    updateMergeBar();
+    return;
+  }
+
+  segments.forEach((seg, i) => {
+    const color    = seg.locked ? '#ffb800' : COLORS[i % COLORS.length];
+    const isSel    = selectedSegments.has(i);
+    const item     = document.createElement('div');
+    item.className = 'segment-item'
+      + (activeSegment === i ? ' active' : '')
+      + (isSel ? ' selected' : '')
+      + (seg.locked ? ' locked' : '');
+
+    if (seg.locked) {
+      item.innerHTML = `
+        <span class="lock-icon" title="Locked segment">🔒</span>
+        <span class="seg-index" style="color:${color}">#${i+1}</span>
+        <input class="seg-name-input" value="${seg.name}" data-idx="${i}" title="Click to rename">
+        <div class="seg-buttons">
+          <span class="seg-time">${msStr(seg.start)}–${msStr(seg.end)}</span>
+          <button class="seg-play" data-idx="${i}" title="Preview">▶</button>
+          <button class="seg-lock-btn seg-unlock" data-idx="${i}" title="Unlock segment" style="color:#ffb800;">🔓</button>
+        </div>
+      `;
+    } else {
+      item.innerHTML = `
+        <input type="checkbox" class="seg-check" data-idx="${i}" ${isSel ? 'checked' : ''} title="Select to merge">
+        <span class="seg-index" style="color:${color}">#${i+1}</span>
+        <input class="seg-name-input" value="${seg.name}" data-idx="${i}" title="Click to rename">
+        <div class="seg-buttons">
+          <span class="seg-time">${msStr(seg.start)}–${msStr(seg.end)}</span>
+          <button class="seg-play" data-idx="${i}" title="Preview">▶</button>
+          <button class="seg-lock-btn seg-do-lock" data-idx="${i}" title="Lock segment">🔒</button>
+          <button class="seg-split" data-idx="${i}" title="Split at point on waveform">✂</button>
+          <button class="seg-delete" data-idx="${i}" title="Delete">✕</button>
+        </div>
+      `;
+    }
+    segListEl.appendChild(item);
+
+    // Clicking the item scrolls the waveform to that segment
+    item.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+      scrollToSegment(i);
+    });
+  });
+
+  // Checkboxes
+  segListEl.querySelectorAll('.seg-check').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const idx = parseInt(e.target.dataset.idx);
+      if (e.target.checked) selectedSegments.add(idx);
+      else selectedSegments.delete(idx);
+      updateMergeBar();
+      renderSegmentList();
+      renderSegmentOverlay();
+    });
+  });
+
+  // Name edits — bind to the segment object directly, not by index
+  segListEl.querySelectorAll('.seg-name-input').forEach(inp => {
+    const seg = segments[parseInt(inp.dataset.idx)];
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('input', () => {
+      seg.name = inp.value;
+      renderSegmentOverlay();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') inp.blur();
+    });
+  });
+
+  // Play buttons
+  segListEl.querySelectorAll('.seg-play').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      playSegment(parseInt(btn.dataset.idx));
+    });
+  });
+
+  // Delete buttons
+  segListEl.querySelectorAll('.seg-delete').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      segments.splice(idx, 1);
+      segments.forEach((s, i) => { s.id = i; });
+      const newSel = new Set();
+      selectedSegments.forEach(si => { if (si < idx) newSel.add(si); else if (si > idx) newSel.add(si - 1); });
+      selectedSegments = newSel;
+      updateMergeBar();
+      renderSegmentOverlay();
+      renderSegmentList();
+    });
+  });
+
+  // Split buttons — enter split mode for this segment
+  segListEl.querySelectorAll('.seg-split').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      enterSplitMode(parseInt(btn.dataset.idx));
+    });
+  });
+
+  // Unlock buttons — locked → editable
+  segListEl.querySelectorAll('.seg-unlock').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      segments[parseInt(btn.dataset.idx)].locked = false;
+      renderSegmentOverlay();
+      renderSegmentList();
+    });
+  });
+
+  // Lock buttons — unlocked → locked
+  segListEl.querySelectorAll('.seg-do-lock').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      segments[parseInt(btn.dataset.idx)].locked = true;
+      renderSegmentOverlay();
+      renderSegmentList();
+    });
+  });
+
+  updateMergeBar();
+}
+
+function updateMergeBar() {
+  const count = selectedSegments.size;
+  if (count >= 2) {
+    mergeBar.classList.add('visible');
+    mergeHint.textContent = `${count} selected`;
+  } else {
+    mergeBar.classList.remove('visible');
+  }
+}
+
+function mergeSelected() {
+  if (selectedSegments.size < 2) return;
+  const indices = [...selectedSegments].sort((a,b) => a - b);
+  const segsToMerge = indices.map(i => segments[i]);
+  const newStart = Math.min(...segsToMerge.map(s => s.start));
+  const newEnd   = Math.max(...segsToMerge.map(s => s.end));
+  // Use the name of the first selected segment
+  const newName  = segsToMerge[0].name;
+
+  // Remove all selected (highest index first to avoid shifting)
+  for (let i = indices.length - 1; i >= 0; i--) {
+    segments.splice(indices[i], 1);
+  }
+
+  // Insert merged segment at position of first selected
+  const insertAt = Math.min(...indices);
+  segments.splice(insertAt, 0, { id: insertAt, name: newName, start: newStart, end: newEnd });
+
+  // Re-ID all
+  segments.forEach((s, i) => { s.id = i; });
+  selectedSegments = new Set();
+  updateMergeBar();
+  renderSegmentOverlay();
+  renderSegmentList();
+}
+
+mergeBtn.addEventListener('click', mergeSelected);
+clearSelBtn.addEventListener('click', () => {
+  selectedSegments = new Set();
+  updateMergeBar();
+  renderSegmentList();
+  renderSegmentOverlay();
+});
+
+// ─── SPLIT MODE ───────────────────────────────────────────────────────────────
+let splitMode = null; // { segIdx } — waiting for user to click split point on waveform
+const splitMarker = document.getElementById('split-marker');
+
+function enterSplitMode(segIdx) {
+  splitMode = { segIdx };
+  segOverlay.style.cursor = 'col-resize';
+  splitMarker.style.height = segOverlay.height + 'px';
+  // Highlight the segment being split
+  renderSegmentOverlay();
+  // Show instruction
+  const seg = segments[segIdx];
+  updateSplitHint(`✂ Click on waveform to split "${seg.name}" — press Esc to cancel`);
+}
+
+function exitSplitMode() {
+  splitMode = null;
+  segOverlay.style.cursor = 'default';
+  splitMarker.style.display = 'none';
+  updateSplitHint('');
+}
+
+function updateSplitHint(msg) {
+  let hint = document.getElementById('splitHint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'splitHint';
+    hint.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00e5b0;color:#0a0a0f;padding:8px 18px;border-radius:20px;font-family:Space Mono,monospace;font-size:12px;font-weight:700;z-index:300;pointer-events:none;transition:opacity 0.2s;';
+    document.body.appendChild(hint);
+  }
+  hint.textContent = msg;
+  hint.style.opacity = msg ? '1' : '0';
+}
+
+function splitSegmentAt(segIdx, splitTime) {
+  const seg = segments[segIdx];
+  if (splitTime <= seg.start + 0.05 || splitTime >= seg.end - 0.05) return; // too close to edge
+
+  const left  = { ...seg, id: segIdx, name: seg.name + '_1', end: splitTime,  locked: false };
+  const right = { ...seg, id: segIdx, name: seg.name + '_2', start: splitTime, locked: false };
+
+  segments.splice(segIdx, 1, left, right);
+  segments.forEach((s, i) => { s.id = i; });
+  selectedSegments = new Set();
+  exitSplitMode();
+  renderSegmentOverlay();
+  renderSegmentList();
+}
+
+// Esc to cancel split mode
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && splitMode) exitSplitMode();
+});
+
+function msStr(sec) {
+  return Math.round(sec * 1000) + 'ms';
+}
+
+function scrollToSegment(idx) {
+  const seg = segments[idx];
+  if (!seg) return;
+  const x = seg.start * pixelsPerSecond;
+  const viewW = waveScroll.clientWidth;
+  // Center the segment in the viewport
+  waveScroll.scrollLeft = Math.max(0, x - viewW * 0.3);
+  // Highlight it
+  activeSegment = idx;
+  renderSegmentList();
+}
+
+// ─── PLAYBACK ─────────────────────────────────────────────────────────────────
+function playSegment(idx) {
+  stopPlayback();
+  if (!audioBuffer) return;
+  const seg = segments[idx];
+  const dur = seg.end - seg.start;
+  if (dur <= 0) return;
+  // Scroll waveform to show this segment
+  const x = seg.start * pixelsPerSecond;
+  const viewW = waveScroll.clientWidth;
+  waveScroll.scrollLeft = Math.max(0, x - viewW * 0.2);
+  startPlayback(seg.start, dur);
+  activeSegment = idx;
+  renderSegmentList();
+  // Scroll segment list to the active item
+  setTimeout(() => {
+    const activeItem = segListEl.querySelector('.segment-item.active');
+    if (activeItem) activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 30);
+}
+
+function startPlayback(offset, duration) {
+  stopPlayback();
+  const safeOffset   = Math.max(0, Math.min(offset, audioBuffer.duration));
+  const safeDuration = Math.max(0.001, Math.min(duration, audioBuffer.duration - safeOffset));
+  playingSource = audioCtx.createBufferSource();
+  playingSource.buffer = audioBuffer;
+  playingSource.connect(audioCtx.destination);
+  playbackStart  = audioCtx.currentTime;
+  playbackOffset = safeOffset;
+  isPlaying      = true;
+  playingSource.start(0, safeOffset, safeDuration);
+  playingSource.onended = () => { isPlaying = false; cancelAnimationFrame(rafId); };
+  updatePlayhead();
+}
+
+function seekPlayback(t) {
+  const safeT = Math.max(0, Math.min(t, audioBuffer.duration));
+  startPlayback(safeT, audioBuffer.duration - safeT);
+}
+
+function stopPlayback() {
+  if (playingSource) {
+    try { playingSource.stop(); } catch(e) {}
+    playingSource = null;
+  }
+  isPlaying = false;
+  cancelAnimationFrame(rafId);
+}
+
+function updatePlayhead() {
+  if (!isPlaying) return;
+  const elapsed = audioCtx.currentTime - playbackStart;
+  const pos     = (playbackOffset + elapsed) * pixelsPerSecond;
+  playhead.style.left = pos + 'px';
+
+  // Auto-scroll
+  const scrollLeft = waveScroll.scrollLeft;
+  const scrollW    = waveScroll.clientWidth;
+  if (pos > scrollLeft + scrollW * 0.8) {
+    waveScroll.scrollLeft = pos - scrollW * 0.2;
+  }
+
+  rafId = requestAnimationFrame(updatePlayhead);
+}
+
+document.getElementById('playAllBtn').addEventListener('click', () => {
+  if (isPlaying) { stopPlayback(); document.getElementById('playAllBtn').textContent = '▶ Play All'; }
+  else { startPlayback(0, audioBuffer.duration); document.getElementById('playAllBtn').textContent = '■ Stop'; }
+});
+
+// ─── CONTROLS ────────────────────────────────────────────────────────────────
+threshSlider.addEventListener('input', () => { threshVal.textContent = parseFloat(threshSlider.value).toFixed(3); });
+gapSlider.addEventListener('input',   () => { gapVal.textContent = gapSlider.value; });
+durSlider.addEventListener('input',   () => { durVal.textContent = durSlider.value; });
+detectBtn.addEventListener('click', detectSegments);
+
+// ─── ZOOM ─────────────────────────────────────────────────────────────────────
+const zoomLevels = [20, 30, 50, 75, 100, 150, 200, 300, 500, 800];
+let zoomIndex = 4; // default = 100
+
+function applyZoom() {
+  if (!audioBuffer) return;
+  const level = zoomLevels[zoomIndex];
+  document.getElementById('zoomVal').textContent = level;
+  // Keep current scroll center stable
+  const oldPPS = pixelsPerSecond;
+  const centerT = (waveScroll.scrollLeft + waveScroll.clientWidth / 2) / oldPPS;
+  pixelsPerSecond = level;
+  drawWaveform();
+  renderSegmentOverlay();
+  // Restore center
+  waveScroll.scrollLeft = Math.max(0, centerT * pixelsPerSecond - waveScroll.clientWidth / 2);
+  drawTimeline(waveCanvas.width);
+}
+
+document.getElementById('zoomInBtn').addEventListener('click', () => {
+  if (zoomIndex < zoomLevels.length - 1) { zoomIndex++; applyZoom(); }
+});
+document.getElementById('zoomOutBtn').addEventListener('click', () => {
+  if (zoomIndex > 0) { zoomIndex--; applyZoom(); }
+});
+
+// ─── PANEL RESIZE ─────────────────────────────────────────────────────────────
+const panelResizeHandle = document.getElementById('panelResizeHandle');
+const segmentsPanel     = document.getElementById('segmentsPanel');
+let panelDragging = false;
+
+panelResizeHandle.addEventListener('mousedown', e => {
+  panelDragging = true;
+  panelResizeHandle.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!panelDragging) return;
+  const editorRect = document.querySelector('.editor-content').getBoundingClientRect();
+  const newWidth = editorRect.right - e.clientX;
+  const clamped  = Math.max(200, Math.min(600, newWidth));
+  segmentsPanel.style.width = clamped + 'px';
+});
+
+window.addEventListener('mouseup', () => {
+  if (panelDragging) {
+    panelDragging = false;
+    panelResizeHandle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+document.getElementById('newSessionBtn').addEventListener('click', () => {
+  if (!confirm('Start a new session? All unsaved segments will be lost.')) return;
+  stopPlayback();
+  audioBuffer  = null;
+  segments     = [];
+  selectedSegments = new Set();
+  fileName     = 'audio';
+  activeSegment = null;
+  dragState    = null;
+  splitMode    = null;
+  exitSplitMode();
+  // Reset UI
+  dropzone.style.display = '';
+  document.getElementById('main-header').style.display = 'none';
+  editorEl.style.display = 'none';
+  fileInput.value = '';
+  importTextarea.value = '';
+});
+
+// ─── IMPORT JSON ─────────────────────────────────────────────────────────────
+importJsonBtn.addEventListener('click', () => {
+  importError.textContent = '';
+  importModal.classList.add('open');
+});
+
+importModal.addEventListener('click', e => {
+  if (e.target === importModal) importModal.classList.remove('open');
+});
+
+importApplyBtn.addEventListener('click', () => {
+  importError.textContent = '';
+  const raw = importTextarea.value.trim();
+  if (!raw) { importError.textContent = 'Please paste a JSON first.'; return; }
+
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) {
+    importError.textContent = 'Invalid JSON: ' + e.message; return;
+  }
+
+  // Accept both {sprite:{...}} and bare {"key":[start,dur]} shapes
+  const sprite = parsed.sprite || parsed;
+  if (typeof sprite !== 'object' || Array.isArray(sprite)) {
+    importError.textContent = 'Expected a sprite object like { "name": [startMs, durationMs] }'; return;
+  }
+
+  const entries = Object.entries(sprite);
+  if (entries.length === 0) { importError.textContent = 'No entries found in sprite.'; return; }
+
+  // Validate all entries
+  for (const [name, val] of entries) {
+    if (!Array.isArray(val) || val.length < 2 || typeof val[0] !== 'number' || typeof val[1] !== 'number') {
+      importError.textContent = `Entry "${name}" must be [startMs, durationMs].`; return;
+    }
+  }
+
+  // Convert to locked segments (ms → seconds)
+  const lockedSegs = entries.map(([name, [startMs, durMs]]) => ({
+    name,
+    start:  startMs / 1000,
+    end:    (startMs + durMs) / 1000,
+    locked: true
+  })).sort((a, b) => a.start - b.start);
+
+  // Replace all current locked segments, keep any unlocked ones the user added manually
+  const unlockedSegs = segments.filter(s => !s.locked);
+  segments = [...lockedSegs, ...unlockedSegs]
+    .sort((a, b) => a.start - b.start)
+    .map((s, i) => ({ ...s, id: i }));
+
+  selectedSegments = new Set();
+  importModal.classList.remove('open');
+
+  // Immediately detect new sounds — detectSegments skips locked regions
+  // and finds anything after the last locked segment's end time
+  detectSegments();
+
+  // Scroll to end of locked coverage so user can see new detections
+  const lastEnd = Math.max(...lockedSegs.map(s => s.end));
+  const scrollTarget = lastEnd * pixelsPerSecond - waveScroll.clientWidth * 0.3;
+  if (scrollTarget > 0) setTimeout(() => { waveScroll.scrollLeft = scrollTarget; }, 50);
+});
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+exportBtn.addEventListener('click', () => {
+  // Flush any in-progress name edits from the DOM into the segments array
+  document.querySelectorAll('.seg-name-input').forEach(inp => {
+    const idx = parseInt(inp.dataset.idx);
+    if (segments[idx]) segments[idx].name = inp.value;
+  });
+
+  const sprite = {};
+  segments.forEach(seg => {
+    const startMs = Math.round(seg.start * 1000);
+    const durMs   = Math.round((seg.end - seg.start) * 1000);
+    sprite[seg.name] = [startMs, durMs];
+  });
+  const obj = { src: [`${fileName}.mp3`], sprite };
+  exportPre.textContent = JSON.stringify(obj, null, 2);
+  exportModal.classList.add('open');
+});
+
+copyBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(exportPre.textContent);
+  copyBtn.textContent = '✓ Copied!';
+  setTimeout(() => copyBtn.textContent = 'Copy JSON', 1800);
+});
+
+downloadJsonBtn.addEventListener('click', () => {
+  const blob = new Blob([exportPre.textContent], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${fileName}-sprite.json`;
+  a.click();
+});
+
+exportModal.addEventListener('click', e => {
+  if (e.target === exportModal) exportModal.classList.remove('open');
+});
+
+// ─── LOADING ──────────────────────────────────────────────────────────────────
+function showLoading(msg) { loadingText.textContent = msg; loadingEl.classList.add('show'); }
+function hideLoading()    { loadingEl.classList.remove('show'); }
+
+// Resize handler
+window.addEventListener('resize', () => {
+  if (audioBuffer) drawWaveform();
+});
+</script>
+</body>
+</html>
